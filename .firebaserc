@@ -1,6 +1,5 @@
 {
   "projects": {
-    "default": "your-firebase-project-id"
+    "default": "food-delivery-route"
   }
 }
-

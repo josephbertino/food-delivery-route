@@ -53,6 +53,7 @@ Follow the prompts:
 
 Edit `.firebaserc` and replace `your-firebase-project-id` with your actual Firebase project ID.
 
+# HERE
 ## Step 6: Set Up Firestore Security Rules
 
 Go to Firebase Console → Firestore Database → Rules and update:
