@@ -4,7 +4,8 @@ A tool to optimize walking routes for food delivery, starting and ending from a 
 
 ## Features
 
-- Upload CSV with addresses (including HOME address) and optional additional data per address
+- Upload CSV with addresses to visit and optional additional data per address
+- Specify starting and ending point
 - Optimize route using Google Maps APIs (shortest walking distance)
 - Display optimal route with notes/metadata
 - Generate Google Maps navigation link
@@ -42,6 +43,7 @@ A tool to optimize walking routes for food delivery, starting and ending from a 
    - Create credentials (API Key)
    - (Optional) Restrict the API key to the enabled APIs for security
 
+# HERE
 4. Set up Firebase (for route storage):
    - See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for detailed instructions
    - Install Firebase CLI: `npm install -g firebase-tools`
