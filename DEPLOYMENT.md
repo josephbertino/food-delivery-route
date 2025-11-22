@@ -41,7 +41,6 @@ Your frontend will be available at: `https://your-project-id.web.app`
 
 ## Step 2: Deploy Backend to Google Cloud Run
 
-# HERE
 ### Option A: Using Cloud Run (Recommended)
 
 1. **Create a Dockerfile** (if not already created):
@@ -88,53 +87,31 @@ Your frontend will be available at: `https://your-project-id.web.app`
    cat Dockerfile
    ```
 
-2. **Create a .dockerignore** file:
-
-   **Step-by-step instructions:**
-   
-   a. **Create a new file called `.dockerignore`** (with the dot at the beginning) in the root directory:
-   
-   **Option 1: Using a text editor**
-   - Create a new file in the root directory
-   - Name it exactly `.dockerignore` (starts with a dot, no extension)
-   
-   **Option 2: Using command line**
-   ```bash
-   touch .dockerignore
-   ```
-   
-   b. **Add the following content to `.dockerignore`**:
-   
-   ```
-   __pycache__
-   *.pyc
-   *.pyo
-   *.pyd
-   .Python
-   env/
-   venv/
-   .venv
-   .env
-   *.log
-   node_modules/
-   frontend/
-   .git/
-   .firebase/
-   ```
-   
-   **What this file does:**
-   - Tells Docker to ignore these files/folders when building the image
-   - Reduces image size and prevents sensitive files (like `.env`) from being included
-   - Excludes virtual environments, cache files, and the frontend (which is deployed separately)
-   
-   c. **Save the file** - Make sure it's saved as `.dockerignore` in the root directory
-   
-   d. **Verify the file was created correctly**:
-   ```bash
-   ls -la .dockerignore
-   cat .dockerignore
-   ```
-
+2. **Create a `.dockerignore` file. Add the following content to `.dockerignore`**:
+  
+  ```
+  __pycache__
+  *.pyc
+  *.pyo
+  *.pyd
+  .Python
+  env/
+  venv/
+  .venv
+  .env
+  *.log
+  node_modules/
+  frontend/
+  .git/
+  .firebase/
+  ```
+  
+  **What this file does:**
+  - Tells Docker to ignore these files/folders when building the image
+  - Reduces image size and prevents sensitive files (like `.env`) from being included
+  - Excludes virtual environments, cache files, and the frontend (which is deployed separately)
+  
+#HERE
 3. **Build and deploy to Cloud Run**:
 
 ```bash
