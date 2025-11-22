@@ -108,7 +108,6 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 FIREBASE_PROJECT_ID=your-firebase-project-id
 ```
 
-# HERE
 For Firebase Functions (if using), set secrets:
 ```bash
 firebase functions:secrets:set GOOGLE_MAPS_API_KEY
@@ -127,6 +126,7 @@ firebase deploy --only hosting
 
 ### Deploy Backend (Option 1: Keep Flask on Cloud Run)
 
+# HERE
 See `DEPLOYMENT.md` for Cloud Run deployment instructions.
 
 ### Deploy Backend (Option 2: Migrate to Firebase Functions)
