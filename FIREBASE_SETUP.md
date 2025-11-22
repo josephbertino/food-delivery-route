@@ -49,12 +49,26 @@ Follow the prompts:
   - Use default security rules: Yes (we'll update them)
   - Choose locations: Select closest to your users
 
-## Step 5: Update Firebase Project ID
+## Step 5: Create Firestore Database
+
+Before you can set up security rules, you need to create/enable the Firestore database in the Firebase Console:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Select your project
+3. In the left sidebar, click **"Firestore Database"** (or go to **"Build"** → **"Firestore Database"**)
+4. Click **"Create database"**
+5. Choose:
+   - **Production mode** or **Test mode** (you can update rules later in Step 7)
+   - A location for your database (select the closest to your users - this should match what you selected in Step 4)
+6. Click **"Enable"**
+
+Wait for the database to be created. Once it's ready, you'll be able to access the Rules tab.
+
+## Step 6: Update Firebase Project ID
 
 Edit `.firebaserc` and replace `your-firebase-project-id` with your actual Firebase project ID.
 
-# HERE
-## Step 6: Set Up Firestore Security Rules
+## Step 7: Set Up Firestore Security Rules
 
 Go to Firebase Console → Firestore Database → Rules and update:
 
@@ -71,7 +85,7 @@ service cloud.firestore {
 }
 ```
 
-## Step 7: Update Backend to Use Firestore
+## Step 8: Update Backend to Use Firestore
 
 The backend has been updated to use Firestore. Make sure to:
 
@@ -86,7 +100,7 @@ The backend has been updated to use Firestore. Make sure to:
    - Save the JSON file as `firebase-service-account.json` in the project root
    - Add `firebase-service-account.json` to `.gitignore`
 
-## Step 8: Set Environment Variables
+## Step 9: Set Environment Variables
 
 For local development, create `.env`:
 ```
@@ -94,12 +108,13 @@ GOOGLE_MAPS_API_KEY=your_google_maps_api_key
 FIREBASE_PROJECT_ID=your-firebase-project-id
 ```
 
+# HERE
 For Firebase Functions (if using), set secrets:
 ```bash
 firebase functions:secrets:set GOOGLE_MAPS_API_KEY
 ```
 
-## Step 9: Deploy
+## Step 10: Deploy
 
 ### Deploy Frontend to Firebase Hosting:
 
@@ -118,7 +133,7 @@ See `DEPLOYMENT.md` for Cloud Run deployment instructions.
 
 If you want to migrate the Flask backend to Firebase Functions, see the `functions/` directory setup.
 
-## Step 10: Update Frontend API URL
+## Step 11: Update Frontend API URL
 
 After deployment, update the frontend to use the deployed backend URL:
 
