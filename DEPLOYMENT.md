@@ -6,8 +6,28 @@ This guide covers deploying the Food Delivery Route Optimizer to production.
 
 The application consists of:
 - **Frontend**: React app (deploy to Firebase Hosting)
-- **Backend**: Flask API (deploy to Google Cloud Run)
+- **Backend**: Flask API (needs to be deployed to a server - Cloud Run recommended)
 - **Database**: Firebase Firestore (already set up)
+
+### Why Do You Need to Deploy the Backend?
+
+Your Flask backend (`app.py`) provides critical API endpoints that your React frontend calls:
+- `/api/optimize-route` - Processes CSV files, calls Google Maps API, optimizes routes, stores in Firestore
+- `/api/route/<code>` - Retrieves stored routes from Firestore
+
+**The backend must be publicly accessible on the internet** so your deployed frontend can make HTTP requests to it. You cannot run the backend only on your local machine - it needs to be hosted on a server.
+
+**Why Google Cloud Run?**
+- Serverless (scales to zero when not in use, reducing costs)
+- Pay-per-use pricing (very affordable for low traffic)
+- Easy integration with Firebase/Google Cloud services
+- Simple deployment with Docker
+- Free tier: 2 million requests/month
+
+**Alternative Options:**
+- **Firebase Functions** (Option B below) - Keeps everything in Firebase ecosystem
+- **Other Platforms**: Heroku, Railway, Render, AWS Lambda, Azure Functions
+- **Self-hosted**: VPS, your own server (requires more maintenance)
 
 ## Prerequisites
 
@@ -111,19 +131,25 @@ Your frontend will be available at: `https://your-project-id.web.app`
   - Reduces image size and prevents sensitive files (like `.env`) from being included
   - Excludes virtual environments, cache files, and the frontend (which is deployed separately)
   
-#HERE
 3. **Build and deploy to Cloud Run**:
 
 ```bash
-# Set your project ID
-export PROJECT_ID=your-google-cloud-project-id
-export SERVICE_NAME=food-delivery-api
+# Set your project ID and other variables
+export PROJECT_ID=food-delivery-route-optimizer
+export SERVICE_NAME=food-delivery-route
 export REGION=us-central1
+
+# IMPORTANT: Set the default gcloud project (gcloud doesn't use the PROJECT_ID env var automatically)
+gcloud config set project $PROJECT_ID
+
+# Verify the project is set correctly
+gcloud config get-value project
 
 # Build the container
 gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVICE_NAME
 
 # Deploy to Cloud Run
+# HERE
 gcloud run deploy $SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
   --platform managed \
@@ -133,6 +159,8 @@ gcloud run deploy $SERVICE_NAME \
   --set-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id \
   --set-secrets FIREBASE_SERVICE_ACCOUNT=/secrets/firebase-service-account:latest
 ```
+
+**Note:** If you get an error about the project not being set, you can also add `--project $PROJECT_ID` to each gcloud command, or set it once with `gcloud config set project $PROJECT_ID` (recommended).
 
 4. **Get the Cloud Run URL**:
 
