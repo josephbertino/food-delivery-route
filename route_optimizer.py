@@ -1,5 +1,4 @@
-import itertools
-from typing import List, Dict, Tuple
+from typing import List, Dict
 from urllib.parse import quote_plus
 
 class RouteOptimizer:
@@ -8,7 +7,11 @@ class RouteOptimizer:
     
     def optimize_route(self, addresses: List[Dict], home_index: int) -> Dict:
         """
-        Optimize route starting and ending at home address.
+        Optimize route starting and ending at home address using Google Directions API.
+        
+        Uses Google's Directions API with waypoint optimization to automatically
+        determine the optimal order of stops. This is more accurate and efficient
+        than solving TSP locally, and handles larger numbers of waypoints better.
         
         Args:
             addresses: List of dicts with 'address' and 'notes' keys
@@ -31,82 +34,92 @@ class RouteOptimizer:
                     'google_maps_url': ''
                 }
             
-            # Get distance matrix for all points (home + waypoints)
-            all_addresses = [home_address] + waypoints
-            address_strings = [addr['address'] for addr in all_addresses]
+            # Prepare waypoint addresses for Directions API
+            waypoint_addresses = [addr['address'] for addr in waypoints]
+            origin = home_address['address']
+            destination = home_address['address']  # Return to home
             
-            # Get distance matrix using walking mode
-            distance_matrix = self.gmaps.distance_matrix(
-                address_strings,
-                address_strings,
+            # Call Directions API with waypoint optimization
+            # optimize_waypoints=True tells Google to optimize the order automatically
+            directions_result = self.gmaps.directions(
+                origin=origin,
+                destination=destination,
+                waypoints=waypoint_addresses,
+                optimize_waypoints=True,  # This is the key parameter!
                 mode='walking',
                 units='metric'
             )
             
-            if distance_matrix['status'] != 'OK':
+            if not directions_result:
                 return {
-                    'error': f"Distance Matrix API error: {distance_matrix.get('status', 'Unknown error')}",
+                    'error': 'No route found. Please check your addresses.',
                     'route': [],
                     'total_distance': 0,
                     'total_duration': 0,
                     'google_maps_url': ''
                 }
             
-            # Extract distances and durations
-            n = len(all_addresses)
-            distances = [[0] * n for _ in range(n)]
-            durations = [[0] * n for _ in range(n)]
+            # Extract route information
+            route_data = directions_result[0]
+            legs = route_data['legs']
             
-            for i in range(n):
-                for j in range(n):
-                    element = distance_matrix['rows'][i]['elements'][j]
-                    if element['status'] == 'OK':
-                        distances[i][j] = element['distance']['value']  # meters
-                        durations[i][j] = element['duration']['value']  # seconds
-                    else:
-                        # If route not found, use a large penalty
-                        distances[i][j] = float('inf')
-                        durations[i][j] = float('inf')
+            # Get optimized waypoint order from the response
+            # The waypoint_order field contains the optimized indices
+            waypoint_order = route_data.get('waypoint_order', list(range(len(waypoint_addresses))))
             
-            # Solve TSP: find optimal order of waypoints
-            # Home is at index 0, waypoints are at indices 1 to n-1
-            waypoint_indices = list(range(1, n))
-            
-            if len(waypoint_indices) <= 1:
-                # Only one waypoint, order is fixed
-                optimal_order = [0] + waypoint_indices + [0]
-            else:
-                # Try all permutations (for small number of waypoints)
-                # For larger sets, we'd use a more efficient algorithm
-                if len(waypoint_indices) > 8:
-                    # Use nearest neighbor heuristic for large sets
-                    optimal_order = self._nearest_neighbor_tsp(distances, 0, waypoint_indices)
-                else:
-                    # Brute force for small sets
-                    optimal_order = self._brute_force_tsp(distances, 0, waypoint_indices)
-            
-            # Build route with addresses and metadata
+            # Build route with step-by-step information
+            # The legs array contains: [home->wp1, wp1->wp2, ..., wpN->home]
+            # The waypoint_order tells us the optimized order of waypoints
             route = []
-            total_distance = 0
-            total_duration = 0
+            total_distance = 0  # meters
+            total_duration = 0  # seconds
             
-            for i, idx in enumerate(optimal_order):
-                addr_data = all_addresses[idx]
+            # Add home as first step
+            route.append({
+                'step': 1,
+                'address': home_address['address'],
+                'notes': home_address.get('notes', 'Home'),
+                'is_home': True
+            })
+            
+            # Add waypoints in optimized order
+            # The legs are already in the optimized order from the API
+            step_num = 2
+            for i, leg in enumerate(legs[:-1]):  # All legs except the last (return to home)
+                # Get the waypoint index from the optimized order
+                waypoint_idx = waypoint_order[i] if i < len(waypoint_order) else i
+                waypoint = waypoints[waypoint_idx]
+                
                 route.append({
-                    'step': i + 1,
-                    'address': addr_data['address'],
-                    'notes': addr_data['notes'],
-                    'is_home': idx == 0
+                    'step': step_num,
+                    'address': waypoint['address'],
+                    'notes': waypoint.get('notes', ''),
+                    'is_home': False
                 })
                 
-                # Add distance and duration to next step
-                if i < len(optimal_order) - 1:
-                    next_idx = optimal_order[i + 1]
-                    total_distance += distances[idx][next_idx]
-                    total_duration += durations[idx][next_idx]
+                total_distance += leg['distance']['value']
+                total_duration += leg['duration']['value']
+                step_num += 1
             
-            # Generate Google Maps URL
-            google_maps_url = self._generate_google_maps_url(all_addresses, optimal_order)
+            # Add return to home as final step
+            final_leg = legs[-1]  # Last leg is return to home
+            route.append({
+                'step': step_num,
+                'address': home_address['address'],
+                'notes': home_address.get('notes', 'Home'),
+                'is_home': True
+            })
+            total_distance += final_leg['distance']['value']
+            total_duration += final_leg['duration']['value']
+            
+            # Build optimized address list for Google Maps URL
+            optimized_addresses = [home_address]
+            for idx in waypoint_order:
+                optimized_addresses.append(waypoints[idx])
+            optimized_addresses.append(home_address)  # Return to home
+            
+            # Generate Google Maps URL with optimized waypoints
+            google_maps_url = self._generate_google_maps_url(optimized_addresses)
             
             return {
                 'error': None,
@@ -125,50 +138,14 @@ class RouteOptimizer:
                 'google_maps_url': ''
             }
     
-    def _brute_force_tsp(self, distances: List[List[float]], start: int, waypoints: List[int]) -> List[int]:
-        """Solve TSP using brute force (only for small sets)."""
-        if not waypoints:
-            return [start, start]
-        
-        min_distance = float('inf')
-        best_order = None
-        
-        for perm in itertools.permutations(waypoints):
-            order = [start] + list(perm) + [start]
-            distance = sum(distances[order[i]][order[i+1]] for i in range(len(order)-1))
-            
-            if distance < min_distance:
-                min_distance = distance
-                best_order = order
-        
-        return best_order
-    
-    def _nearest_neighbor_tsp(self, distances: List[List[float]], start: int, waypoints: List[int]) -> List[int]:
-        """Solve TSP using nearest neighbor heuristic."""
-        if not waypoints:
-            return [start, start]
-        
-        unvisited = set(waypoints)
-        current = start
-        order = [start]
-        
-        while unvisited:
-            nearest = min(unvisited, key=lambda x: distances[current][x])
-            order.append(nearest)
-            unvisited.remove(nearest)
-            current = nearest
-        
-        order.append(start)  # Return to home
-        return order
-    
-    def _generate_google_maps_url(self, addresses: List[Dict], order: List[int]) -> str:
-        """Generate Google Maps URL for navigation."""
+    def _generate_google_maps_url(self, addresses: List[Dict]) -> str:
+        """Generate Google Maps URL for navigation with optimized route."""
         base_url = "https://www.google.com/maps/dir/"
         
         # Build waypoints string with proper URL encoding
         waypoints = []
-        for idx in order:
-            address = addresses[idx]['address']
+        for addr in addresses:
+            address = addr['address']
             # Properly URL encode the address
             waypoints.append(quote_plus(address))
         

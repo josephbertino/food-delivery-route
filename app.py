@@ -20,6 +20,7 @@ if not api_key:
     raise ValueError("GOOGLE_MAPS_API_KEY environment variable is required. Please set it in your .env file.")
 gmaps = googlemaps.Client(key=api_key)
 
+# Health check endpoint
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({'status': 'ok'})
@@ -35,7 +36,12 @@ def _is_likely_address(text):
     return has_number or has_indicator
 
 def _parse_csv(stream):
-    """Parse CSV with flexible format - first column is address, optional header detection."""
+    """
+    Parse CSV with flexible format - first column is address, optional header detection.
+
+    :param io.StringIO stream: CSV file stream
+    :return (List[Dict[str, str]], bool): List of addresses and boolean indicating if the file has a header
+    """
     csv_reader = csv.reader(stream)
     rows = list(csv_reader)
     
@@ -43,6 +49,7 @@ def _parse_csv(stream):
         return [], True  # Empty file, has_header = True by default
     
     # Check if first row looks like a header (doesn't look like an address)
+    # If the first row is is blank, that's assumed to be a header
     first_row = rows[0]
     first_cell = first_row[0].strip() if first_row else ""
     has_header = not _is_likely_address(first_cell)

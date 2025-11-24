@@ -71,6 +71,18 @@ This document lists all the actions you need to take to get the Food Delivery Ro
   - [ ] (Optional) Enable Google Analytics
   - [ ] Click "Create project"
 
+- [ ] **Upgrade to BLAZE plan (Required for Cloud Functions):**
+  - [ ] Go to Firebase Console → Project Settings → Usage and billing
+  - [ ] Click "Modify plan" or "Upgrade to Blaze"
+  - [ ] Select the Blaze (pay-as-you-go) plan
+  - [ ] Link a billing account (credit card required)
+  - [ ] **Note:** Cloud Functions require the Blaze plan, but the free tier is generous:
+    - 2 million function invocations/month (FREE)
+    - 400,000 GB-seconds/month (FREE)
+    - 200,000 CPU-seconds/month (FREE)
+    - The scheduled cleanup job runs once daily (~30 invocations/month), so it's FREE
+  - [ ] See [Firebase Pricing](https://firebase.google.com/pricing) for details
+
 - [ ] Initialize Firebase in your project:
   ```bash
   firebase init
@@ -199,7 +211,37 @@ This document lists all the actions you need to take to get the Food Delivery Ro
 
 - [ ] Note your Cloud Run URL (e.g., `https://food-delivery-api-xxxxx.run.app`)
 
-### Step 8: Update Frontend to Use Production Backend
+### Step 8: Deploy Scheduled Cleanup Cloud Function
+
+- [ ] Install Python dependencies for Cloud Functions:
+  ```bash
+  cd functions
+  python -m venv venv
+  source venv/bin/activate  # On Windows: venv\Scripts\activate
+  pip install -r requirements.txt
+  deactivate
+  cd ..
+  ```
+
+- [ ] Deploy the Cloud Function:
+  ```bash
+  firebase deploy --only functions
+  ```
+
+- [ ] Verify the function is deployed:
+  - [ ] Go to Firebase Console → Functions
+  - [ ] You should see `cleanup_expired_routes` function
+  - [ ] It should be scheduled to run daily at 2:00 AM UTC
+
+- [ ] (Optional) Test the function manually:
+  - [ ] Go to Firebase Console → Functions
+  - [ ] Click on `cleanup_expired_routes`
+  - [ ] Click "Test" or "Trigger" to run it manually
+  - [ ] Check Firestore to verify expired routes are deleted
+
+**Note:** The cleanup function runs automatically once per day. You can monitor its execution in Firebase Console → Functions → Logs.
+
+### Step 9: Update Frontend to Use Production Backend
 
 - [ ] Create `frontend/.env.production`:
   ```bash
@@ -216,7 +258,7 @@ This document lists all the actions you need to take to get the Food Delivery Ro
   firebase deploy --only hosting
   ```
 
-### Step 9: Test Production Deployment
+### Step 10: Test Production Deployment
 
 - [ ] Visit your Firebase Hosting URL
 - [ ] Test creating a route
@@ -228,7 +270,7 @@ This document lists all the actions you need to take to get the Food Delivery Ro
 
 ## Phase 3: Optional Enhancements
 
-### Step 10: Set Up Custom Domain (Optional)
+### Step 11: Set Up Custom Domain (Optional)
 
 - [ ] For Firebase Hosting:
   - [ ] Go to Firebase Console → Hosting
@@ -241,7 +283,7 @@ This document lists all the actions you need to take to get the Food Delivery Ro
   - [ ] Map your domain
   - [ ] Update DNS records
 
-### Step 11: Set Up Monitoring (Recommended)
+### Step 12: Set Up Monitoring (Recommended)
 
 - [ ] Set up Google Cloud Monitoring alerts:
   - [ ] High error rates
@@ -253,7 +295,7 @@ This document lists all the actions you need to take to get the Food Delivery Ro
   - [ ] Cloud Run costs
   - [ ] Firestore usage
 
-### Step 12: Security Hardening (Recommended)
+### Step 13: Security Hardening (Recommended)
 
 - [ ] Review and update Firestore security rules
 - [ ] Set up API key restrictions for production
