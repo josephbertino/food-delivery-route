@@ -1,0 +1,8 @@
+# Environment variables for Cloud Run deployment
+# Copy this file to env-vars.yaml and update with your actual values
+# DO NOT commit env-vars.yaml to git (it contains sensitive API keys)
+
+GOOGLE_MAPS_API_KEY: "your-api-key-here"
+FIREBASE_PROJECT_ID: "your-firebase-project-id"
+CORS_ORIGINS: "https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+

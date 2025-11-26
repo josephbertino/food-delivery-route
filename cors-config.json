@@ -1,0 +1,7 @@
+{
+  "CORS_ORIGINS": [
+    "https://food-delivery-route.web.app",
+    "https://food-delivery-route.firebaseapp.com"
+  ]
+}
+

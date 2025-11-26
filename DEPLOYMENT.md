@@ -151,20 +151,19 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --role="roles/datastore.user"
 
 # Then deploy (uses default credentials - no secrets needed):
-# Replace your-project-id with your actual Firebase project ID for CORS_ORIGINS
-# Deploy without CORS_ORIGINS first (to avoid comma parsing issues)
-# HERE
+# First, create env-vars.yaml from the template and update with your actual values:
+cp env-vars.yaml.template env-vars.yaml
+# Edit env-vars.yaml with your actual values:
+# - GOOGLE_MAPS_API_KEY: your actual API key
+# - FIREBASE_PROJECT_ID: your Firebase project ID
+# - CORS_ORIGINS: your Firebase Hosting URLs (comma-separated)
+
 gcloud run deploy $SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --set-env-vars GOOGLE_MAPS_API_KEY=your-api-key,FIREBASE_PROJECT_ID=food-delivery-route
-
-# Set CORS_ORIGINS separately after deployment (handles comma-separated values better)
-gcloud run services update $SERVICE_NAME \
-  --region $REGION \
-  --update-env-vars CORS_ORIGINS="https://food-delivery-route.web.app,https://food-delivery-route.firebaseapp.com"
+  --env-vars-file env-vars.yaml
 ```
 
 **Note:** If you get an error about the project not being set, you can also add `--project $PROJECT_ID` to each gcloud command, or set it once with `gcloud config set project $PROJECT_ID` (recommended).
@@ -200,23 +199,32 @@ firebase deploy --only hosting
 
 The Flask app has CORS enabled, but you should restrict it to your Firebase Hosting domain for security.
 
-1. **Get your Firebase Hosting URL:**
-   - After deploying to Firebase Hosting, your URL will be: `https://your-project-id.web.app`
+# HERE
+1. **Create or update the configuration file:**
+   - If you don't have `env-vars.yaml` yet, create it from the template:
+     ```bash
+     cp env-vars.yaml.template env-vars.yaml
+     ```
+   - Edit `env-vars.yaml` in the root directory
+   - Update `CORS_ORIGINS` with your Firebase Hosting URLs (comma-separated):
+     ```yaml
+     CORS_ORIGINS: "https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+     ```
+   - Your Firebase Hosting URL will be: `https://your-project-id.web.app`
    - Or if you have a custom domain: `https://your-custom-domain.com`
 
-2. **Set CORS origins in Cloud Run:**
+2. **Apply the CORS configuration:**
    ```bash
-   # Replace with your actual Firebase Hosting URL
-   # Note: Comma-separated values must be quoted
+   # Update Cloud Run service with the env-vars.yaml file
    gcloud run services update $SERVICE_NAME \
      --region $REGION \
-     --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+     --env-vars-file env-vars.yaml
    ```
 
    **Note:** 
-   - You can specify multiple origins separated by commas (must be quoted)
+   - The `env-vars.yaml` file allows you to set all environment variables including comma-separated CORS origins without parsing issues
    - If you don't set `CORS_ORIGINS`, the app will allow all origins (useful for development but not recommended for production)
-   - Alternatively, you can set them one at a time or use a different approach (see troubleshooting below)
+   - You can also update just CORS_ORIGINS by editing `env-vars.yaml` and running the update command again
 
 3. **Verify CORS is working:**
    - Open your Firebase Hosting site in a browser
@@ -266,25 +274,22 @@ If you get a 503 error with CORS issues:
 
 5. **Fixing CORS_ORIGINS with comma-separated values:**
    
-   If `--update-env-vars` doesn't work with comma-separated values, use one of these approaches:
+   The recommended approach is to use the `env-vars.yaml` file:
    
-   **Option A: Use quotes (recommended):**
+   **Option A: Use env-vars.yaml file (recommended):**
    ```bash
+   # Create env-vars.yaml from template if needed:
+   cp env-vars.yaml.template env-vars.yaml
+   
+   # Edit env-vars.yaml to update CORS_ORIGINS:
+   # CORS_ORIGINS: "https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+   
    gcloud run services update $SERVICE_NAME \
      --region $REGION \
-     --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+     --env-vars-file env-vars.yaml
    ```
    
-   **Option B: Set all env vars at once (use update-env-vars for each to avoid comma issues):**
-   ```bash
-   gcloud run services update $SERVICE_NAME \
-     --region $REGION \
-     --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
-     --update-env-vars FIREBASE_PROJECT_ID=your-project-id \
-     --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
-   ```
-   
-   **Option C: Set only one origin (simplest):**
+   **Option B: Set only one origin (simplest if you only need one):**
    ```bash
    gcloud run services update $SERVICE_NAME \
      --region $REGION \
@@ -299,22 +304,33 @@ If you get a 503 error with CORS issues:
 
 ## Step 5: Set Up Environment Variables
 
-For Cloud Run, set or update environment variables:
+For Cloud Run, set or update environment variables using the `env-vars.yaml` file:
 
+1. **Create `env-vars.yaml` from the template** (if you haven't already):
+   ```bash
+   cp env-vars.yaml.template env-vars.yaml
+   ```
+
+2. **Edit `env-vars.yaml`** with your actual values:
+   ```yaml
+   GOOGLE_MAPS_API_KEY: "your-actual-api-key"
+   FIREBASE_PROJECT_ID: "your-firebase-project-id"
+   CORS_ORIGINS: "https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+   ```
+
+3. **Apply the environment variables:**
+   ```bash
+   gcloud run services update $SERVICE_NAME \
+     --region $REGION \
+     --env-vars-file env-vars.yaml
+   ```
+
+**Alternative: Update individual variables (if you prefer):**
 ```bash
-# Option 1: Update individual variables (comma-separated values must be quoted)
+# Update a single variable
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
-  --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
-  --update-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id \
-  --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
-
-# Option 2: Set all at once using multiple update-env-vars flags (recommended for comma-separated values)
-gcloud run services update $SERVICE_NAME \
-  --region $REGION \
-  --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
-  --update-env-vars FIREBASE_PROJECT_ID=your-project-id \
-  --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+  --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key
 ```
 
 **Note:** The app uses Cloud Run's default credentials to access Firestore. No service account JSON file or Secret Manager setup is needed - just make sure you've granted the `roles/datastore.user` permission to the Cloud Run service account (done in Step 2 above).

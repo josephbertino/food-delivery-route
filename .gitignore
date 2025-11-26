@@ -16,4 +16,5 @@ frontend/.env
 firebase-service-account.json
 .firebase/
 *.cache
+env-vars.yaml
 
