@@ -152,15 +152,19 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 # Then deploy (uses default credentials - no secrets needed):
 # Replace your-project-id with your actual Firebase project ID for CORS_ORIGINS
-# Note: Comma-separated values in CORS_ORIGINS must be quoted
+# Deploy without CORS_ORIGINS first (to avoid comma parsing issues)
+# HERE
 gcloud run deploy $SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --set-env-vars GOOGLE_MAPS_API_KEY=AIzaSyDJXleJdMCthVNQMuy5zOtFRbykOtCBhPo \
-  --set-env-vars FIREBASE_PROJECT_ID=food-delivery-route \
-  --set-env-vars CORS_ORIGINS="https://food-delivery-route.web.app,https://food-delivery-route.firebaseapp.com"
+  --set-env-vars GOOGLE_MAPS_API_KEY=your-api-key,FIREBASE_PROJECT_ID=food-delivery-route
+
+# Set CORS_ORIGINS separately after deployment (handles comma-separated values better)
+gcloud run services update $SERVICE_NAME \
+  --region $REGION \
+  --update-env-vars CORS_ORIGINS="https://food-delivery-route.web.app,https://food-delivery-route.firebaseapp.com"
 ```
 
 **Note:** If you get an error about the project not being set, you can also add `--project $PROJECT_ID` to each gcloud command, or set it once with `gcloud config set project $PROJECT_ID` (recommended).
@@ -271,11 +275,13 @@ If you get a 503 error with CORS issues:
      --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
    ```
    
-   **Option B: Set all env vars at once:**
+   **Option B: Set all env vars at once (use update-env-vars for each to avoid comma issues):**
    ```bash
    gcloud run services update $SERVICE_NAME \
      --region $REGION \
-     --set-env-vars GOOGLE_MAPS_API_KEY=your_api_key,FIREBASE_PROJECT_ID=your-project-id,CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+     --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
+     --update-env-vars FIREBASE_PROJECT_ID=your-project-id \
+     --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
    ```
    
    **Option C: Set only one origin (simplest):**
@@ -303,10 +309,12 @@ gcloud run services update $SERVICE_NAME \
   --update-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id \
   --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
 
-# Option 2: Set all at once (if update doesn't work with commas)
+# Option 2: Set all at once using multiple update-env-vars flags (recommended for comma-separated values)
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
-  --set-env-vars GOOGLE_MAPS_API_KEY=your_api_key,FIREBASE_PROJECT_ID=your-project-id,CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+  --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
+  --update-env-vars FIREBASE_PROJECT_ID=your-project-id \
+  --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
 ```
 
 **Note:** The app uses Cloud Run's default credentials to access Firestore. No service account JSON file or Secret Manager setup is needed - just make sure you've granted the `roles/datastore.user` permission to the Cloud Run service account (done in Step 2 above).
