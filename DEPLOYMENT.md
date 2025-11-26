@@ -149,15 +149,20 @@ gcloud config get-value project
 gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVICE_NAME
 
 # Deploy to Cloud Run
-# HERE
+# First, grant Firestore permissions to Cloud Run service account (one-time setup):
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+  --role="roles/datastore.user"
+
+# Then deploy (uses default credentials - no secrets needed):
 gcloud run deploy $SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
   --set-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
-  --set-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id \
-  --set-secrets FIREBASE_SERVICE_ACCOUNT=/secrets/firebase-service-account:latest
+  --set-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id
 ```
 
 **Note:** If you get an error about the project not being set, you can also add `--project $PROJECT_ID` to each gcloud command, or set it once with `gcloud config set project $PROJECT_ID` (recommended).
@@ -193,7 +198,7 @@ The Flask app already has CORS enabled, but make sure your Cloud Run service all
 
 ## Step 5: Set Up Environment Variables
 
-For Cloud Run, set environment variables:
+For Cloud Run, set or update environment variables:
 
 ```bash
 gcloud run services update $SERVICE_NAME \
@@ -202,17 +207,7 @@ gcloud run services update $SERVICE_NAME \
   --update-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id
 ```
 
-For sensitive data (like service account keys), use Google Secret Manager:
-
-```bash
-# Create secret
-echo -n '{"type":"service_account",...}' | gcloud secrets create firebase-service-account --data-file=-
-
-# Grant access
-gcloud secrets add-iam-policy-binding firebase-service-account \
-  --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
-  --role="roles/secretmanager.secretAccessor"
-```
+**Note:** The app uses Cloud Run's default credentials to access Firestore. No service account JSON file or Secret Manager setup is needed - just make sure you've granted the `roles/datastore.user` permission to the Cloud Run service account (done in Step 2 above).
 
 ## Step 6: Set Up Custom Domain (Optional)
 
