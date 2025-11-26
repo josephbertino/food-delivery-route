@@ -61,18 +61,13 @@ Your frontend will be available at: `https://your-project-id.web.app`
 
 ## Step 2: Deploy Backend to Google Cloud Run
 
-### Option A: Using Cloud Run (Recommended)
+### Using Cloud Run
 
 1. **Create a Dockerfile** (if not already created):
 
    **Step-by-step instructions:**
    
-   a. **Open your terminal** and navigate to the project root directory:
-   ```bash
-   cd /path/to/food-delivery-route
-   ```
-   
-   b. **Create a new file called `Dockerfile`** (with no extension) in the root directory.
+   a. **Create a new file called `Dockerfile`** (with no extension) in the root directory.
    
    c. **Add the following content to the Dockerfile**:
    
@@ -156,13 +151,16 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --role="roles/datastore.user"
 
 # Then deploy (uses default credentials - no secrets needed):
+# Replace your-project-id with your actual Firebase project ID for CORS_ORIGINS
+# Note: Comma-separated values in CORS_ORIGINS must be quoted
 gcloud run deploy $SERVICE_NAME \
   --image gcr.io/$PROJECT_ID/$SERVICE_NAME \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --set-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
-  --set-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id
+  --set-env-vars GOOGLE_MAPS_API_KEY=AIzaSyDJXleJdMCthVNQMuy5zOtFRbykOtCBhPo \
+  --set-env-vars FIREBASE_PROJECT_ID=food-delivery-route \
+  --set-env-vars CORS_ORIGINS="https://food-delivery-route.web.app,https://food-delivery-route.firebaseapp.com"
 ```
 
 **Note:** If you get an error about the project not being set, you can also add `--project $PROJECT_ID` to each gcloud command, or set it once with `gcloud config set project $PROJECT_ID` (recommended).
@@ -174,6 +172,8 @@ After deployment, you'll get a URL like: `https://food-delivery-api-xxxxx.run.ap
 ### Option B: Using Firebase Functions (Alternative)
 
 If you prefer to use Firebase Functions, you'll need to convert the Flask app to a Cloud Function. This is more complex but keeps everything in Firebase.
+
+I will consider moving to Firebase functions if the project takes off
 
 ## Step 3: Update Frontend API URL
 
@@ -194,35 +194,122 @@ firebase deploy --only hosting
 
 ## Step 4: Configure CORS
 
-The Flask app already has CORS enabled, but make sure your Cloud Run service allows requests from your Firebase Hosting domain.
+The Flask app has CORS enabled, but you should restrict it to your Firebase Hosting domain for security.
+
+1. **Get your Firebase Hosting URL:**
+   - After deploying to Firebase Hosting, your URL will be: `https://your-project-id.web.app`
+   - Or if you have a custom domain: `https://your-custom-domain.com`
+
+2. **Set CORS origins in Cloud Run:**
+   ```bash
+   # Replace with your actual Firebase Hosting URL
+   # Note: Comma-separated values must be quoted
+   gcloud run services update $SERVICE_NAME \
+     --region $REGION \
+     --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+   ```
+
+   **Note:** 
+   - You can specify multiple origins separated by commas (must be quoted)
+   - If you don't set `CORS_ORIGINS`, the app will allow all origins (useful for development but not recommended for production)
+   - Alternatively, you can set them one at a time or use a different approach (see troubleshooting below)
+
+3. **Verify CORS is working:**
+   - Open your Firebase Hosting site in a browser
+   - Open Developer Tools → Network tab
+   - Try using the app - API requests should succeed
+   - Check the response headers - you should see `Access-Control-Allow-Origin` header
+
+**Troubleshooting CORS/503 Errors:**
+
+If you get a 503 error with CORS issues:
+
+1. **Check if Cloud Run service is running and get the URL:**
+   ```bash
+   gcloud run services describe $SERVICE_NAME --region $REGION --format="value(status.url)"
+   ```
+   - This will show the service URL if it exists
+   - If empty, the service might not be deployed
+
+2. **Check Cloud Run logs for errors:**
+   ```bash
+   gcloud run services logs read $SERVICE_NAME --region $REGION --limit 50
+   ```
+   - Look for startup errors, missing environment variables, or crashes
+   - Check for "GOOGLE_MAPS_API_KEY" errors or Firebase initialization failures
+
+3. **Verify environment variables are set:**
+   ```bash
+   # List all environment variables
+   gcloud run services describe $SERVICE_NAME --region $REGION \
+     --format="table(spec.template.spec.containers[0].env[].name,spec.template.spec.containers[0].env[].value)"
+   ```
+   Or to see them in a more readable format:
+   ```bash
+   gcloud run services describe $SERVICE_NAME --region $REGION \
+     --format="yaml(spec.template.spec.containers[0].env)"
+   ```
+   - Make sure `GOOGLE_MAPS_API_KEY` and `FIREBASE_PROJECT_ID` are set
+   - Check that `CORS_ORIGINS` matches your Firebase Hosting URL exactly (including `https://`)
+   - If variables are missing, update them (see Step 5 below)
+
+4. **Test the health endpoint directly:**
+   ```bash
+   curl https://your-cloud-run-url.run.app/api/health
+   ```
+   - Should return `{"status":"ok"}`
+   - If this fails, the service isn't running properly
+
+5. **Fixing CORS_ORIGINS with comma-separated values:**
+   
+   If `--update-env-vars` doesn't work with comma-separated values, use one of these approaches:
+   
+   **Option A: Use quotes (recommended):**
+   ```bash
+   gcloud run services update $SERVICE_NAME \
+     --region $REGION \
+     --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+   ```
+   
+   **Option B: Set all env vars at once:**
+   ```bash
+   gcloud run services update $SERVICE_NAME \
+     --region $REGION \
+     --set-env-vars GOOGLE_MAPS_API_KEY=your_api_key,FIREBASE_PROJECT_ID=your-project-id,CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+   ```
+   
+   **Option C: Set only one origin (simplest):**
+   ```bash
+   gcloud run services update $SERVICE_NAME \
+     --region $REGION \
+     --update-env-vars CORS_ORIGINS=https://your-project-id.web.app
+   ```
+
+6. **Common issues:**
+   - **Missing environment variables**: Service crashes on startup if `GOOGLE_MAPS_API_KEY` is missing
+   - **Wrong CORS origin**: Must match exactly (including protocol `https://` and no trailing slash)
+   - **Service not deployed**: Make sure deployment completed successfully
+   - **Firestore permissions**: Service account needs `roles/datastore.user` role
 
 ## Step 5: Set Up Environment Variables
 
 For Cloud Run, set or update environment variables:
 
 ```bash
+# Option 1: Update individual variables (comma-separated values must be quoted)
 gcloud run services update $SERVICE_NAME \
   --region $REGION \
   --update-env-vars GOOGLE_MAPS_API_KEY=your_api_key \
-  --update-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id
+  --update-env-vars FIREBASE_PROJECT_ID=your-firebase-project-id \
+  --update-env-vars CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
+
+# Option 2: Set all at once (if update doesn't work with commas)
+gcloud run services update $SERVICE_NAME \
+  --region $REGION \
+  --set-env-vars GOOGLE_MAPS_API_KEY=your_api_key,FIREBASE_PROJECT_ID=your-project-id,CORS_ORIGINS="https://your-project-id.web.app,https://your-project-id.firebaseapp.com"
 ```
 
 **Note:** The app uses Cloud Run's default credentials to access Firestore. No service account JSON file or Secret Manager setup is needed - just make sure you've granted the `roles/datastore.user` permission to the Cloud Run service account (done in Step 2 above).
-
-## Step 6: Set Up Custom Domain (Optional)
-
-### For Firebase Hosting:
-
-1. Go to Firebase Console → Hosting
-2. Click "Add custom domain"
-3. Follow the instructions to verify domain ownership
-4. Update DNS records as instructed
-
-### For Cloud Run:
-
-1. Go to Cloud Run → Your Service → Manage Custom Domains
-2. Map your domain to the Cloud Run service
-3. Update DNS records
 
 ## Step 7: Monitor and Maintain
 

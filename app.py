@@ -12,7 +12,17 @@ from firestore_storage import storage
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS
+# Allow requests from Firebase Hosting domain (if specified) or allow all origins for development
+cors_origins = os.getenv('CORS_ORIGINS', '*')
+if cors_origins == '*':
+    # Development: allow all origins
+    CORS(app, supports_credentials=True)
+else:
+    # Production: allow specific origins (comma-separated list)
+    origins = [origin.strip() for origin in cors_origins.split(',')]
+    CORS(app, origins=origins, supports_credentials=True)
 
 # Initialize Google Maps client
 api_key = os.getenv('GOOGLE_MAPS_API_KEY')
